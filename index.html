@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Performance Profiler</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbars for textareas */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #2d3748; /* gray-800 */
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #4a5568; /* gray-600 */
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #718096; /* gray-500 */
+        }
+        /* Styling for the sandbox iframe */
+        #sandbox {
+            width: 100%;
+            height: 300px;
+            border: 1px solid #4a5568; /* gray-600 */
+            border-radius: 0.5rem;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-400">Frontend Performance Profiler</h1>
+            <p class="text-gray-400 mt-2">Analyze your webpage's performance by pasting its HTML and CSS below, or entering a URL.</p>
+        </header>
+
+        <main>
+            <!-- URL Input Section -->
+            <div class="mb-6 bg-gray-800 p-5 rounded-lg shadow-lg">
+                <h3 class="text-xl font-semibold text-gray-300 mb-3">Analyze a Live Webpage</h3>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="url" id="urlInput" placeholder="https://example.com" class="flex-grow p-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm">
+                    <button id="fetchButton" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200">
+                        Fetch & Analyze
+                    </button>
+                </div>
+                <p id="fetchStatus" class="text-gray-400 text-sm mt-2 h-4"></p> <!-- For loading/error messages -->
+            </div>
+
+            <!-- Input Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="htmlInput" class="block text-sm font-medium text-gray-300 mb-2">HTML Content</label>
+                    <textarea id="htmlInput" rows="15" class="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"></textarea>
+                </div>
+                <div>
+                    <label for="cssInput" class="block text-sm font-medium text-gray-300 mb-2">CSS Content</label>
+                    <textarea id="cssInput" rows="15" class="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"></textarea>
+                </div>
+            </div>
+
+            <div class="text-center mb-6">
+                <button id="analyzeButton" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200">
+                    Analyze Pasted Content
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" class="space-y-6">
+                <!-- Core Metrics -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="bg-gray-800 p-5 rounded-lg shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-400">DOM Size</h3>
+                        <p id="domSizeResult" class="text-3xl font-bold text-blue-300">N/A</p>
+                    </div>
+                    <div class="bg-gray-800 p-5 rounded-lg shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-400">Approx. LCP</h3>
+                        <p id="lcpResult" class="text-3xl font-bold text-yellow-300">N/A</p>
+                    </div>
+                    <div class="bg-gray-800 p-5 rounded-lg shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-400">Network Calls</h3>
+                        <p id="networkCallsResult" class="text-3xl font-bold text-green-300">N/A</p>
+                    </div>
+                </div>
+
+                <!-- Image Stats -->
+                <div class="bg-gray-800 p-5 rounded-lg shadow-lg">
+                    <h3 class="text-xl font-semibold text-gray-300 mb-3">Image Stats</h3>
+                    <div id="imageStatsResult" class="text-gray-400 max-h-48 overflow-y-auto">
+                        <p>No images found or analyzed.</p>
+                    </div>
+                </div>
+
+                <!-- Unused CSS -->
+                <div class="bg-gray-800 p-5 rounded-lg shadow-lg">
+                    <h3 class="text-xl font-semibold text-gray-300 mb-3">Approx. Unused CSS Selectors</h3>
+                    <pre id="unusedCssResult" class="bg-gray-900 p-3 rounded-md text-red-400 text-sm max-h-48 overflow-y-auto font-mono"><code>N/A</code></pre>
+                </div>
+
+                <!-- Sandbox Iframe -->
+                <div class="bg-gray-800 p-5 rounded-lg shadow-lg">
+                    <h3 class="text-xl font-semibold text-gray-300 mb-3">Rendered Sandbox</h3>
+                    <iframe id="sandbox" title="Rendered HTML Sandbox"></iframe>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        // Get element references
+        const htmlInput = document.getElementById('htmlInput');
+        const cssInput = document.getElementById('cssInput');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const sandbox = document.getElementById('sandbox');
+        const urlInput = document.getElementById('urlInput');
+        const fetchButton = document.getElementById('fetchButton');
+        const fetchStatus = document.getElementById('fetchStatus');
+        
+        // Result display elements
+        const domSizeResult = document.getElementById('domSizeResult');
+        const lcpResult = document.getElementById('lcpResult');
+        const networkCallsResult = document.getElementById('networkCallsResult');
+        const imageStatsResult = document.getElementById('imageStatsResult');
+        const unusedCssResult = document.getElementById('unusedCssResult').querySelector('code');
+
+        /**
+         * Provide default content for demo purposes
+         */
+        function setDefaultContent() {
+            htmlInput.value = `
+<!-- This is a test page -->
+<header>
+    <h1>Welcome to the Profiler</h1>
+</header>
+<main>
+    <p>This is a paragraph. It uses the 'p' selector.</p>
+    <div class="used-class">This div has a class.</div>
+    <img src="https://placehold.co/600x400/007bff/white?text=Test+Image+1" alt="Placeholder Image 1">
+    <img id="lcp-image" src="https://placehold.co/800x600/28a745/white?text=LCP+Image" alt="Placeholder Image 2">
+    <div>
+        <ul>
+            <li>Item 1</li>
+            <li>Item 2</li>
+        </ul>
+    </div>
+</main>
+<footer>
+    <p>&copy; 2025 Profiler</p>
+</footer>
+`;
+            
+            cssInput.value = `
+body {
+    font-family: sans-serif;
+    background-color: #f0f0f0;
+    margin: 20px;
+}
+h1 {
+    color: #333;
+}
+p {
+    line-height: 1.6;
+}
+.used-class {
+    background-color: #e0e0e0;
+    padding: 10px;
+    border-radius: 5px;
+}
+/* This class is not used */
+.unused-class {
+    color: red;
+}
+/* This ID is not used */
+#not-found {
+    border: 1px solid red;
+}
+/* This will show as unused */
+a:hover {
+    text-decoration: none;
+}
+`;
+            
+            urlInput.value = 'https://example.com';
+        }
+        
+        /**
+         * Resets the UI to a loading state
+         */
+        function resetResults() {
+            domSizeResult.textContent = 'Analyzing...';
+            lcpResult.textContent = 'Analyzing...';
+            networkCallsResult.textContent = 'Analyzing...';
+            imageStatsResult.innerHTML = '<p>Analyzing...</p>';
+            unusedCssResult.textContent = 'Analyzing...';
+        }
+
+        /**
+         * Updates the core metrics cards
+         */
+        function displayMetrics(data) {
+            domSizeResult.textContent = data.domSize.toLocaleString();
+            lcpResult.textContent = data.lcp > 0 ? `${(data.lcp / 1000).toFixed(2)} s` : 'N/A';
+            networkCallsResult.textContent = data.networkCalls.toLocaleString();
+        }
+
+        /**
+         * Displays the list of image statistics
+         */
+        function displayImageStats(stats) {
+            if (!stats || stats.length === 0) {
+                imageStatsResult.innerHTML = '<p>No images found or analyzed.</p>';
+                return;
+            }
+
+            const listItems = stats.map(img => `
+                <li class="flex justify-between items-center py-1 border-b border-gray-700 text-sm">
+                    <span class="truncate pr-2">${img.url.split('/').pop()}</span>
+                    <span class="flex-shrink-0 space-x-4">
+                        <span class="text-blue-300">Size: <b>${(img.size / 1024).toFixed(1)} KB</b></span>
+                        <span class="text-yellow-300">Load: <b>${img.duration.toFixed(0)} ms</b></span>
+                    </span>
+                </li>
+            `).join('');
+            
+            imageStatsResult.innerHTML = `<ul class="space-y-1">${listItems}</ul>`;
+        }
+        
+        /**
+         * Analyzes the CSS in the iframe to find unused selectors (approximately)
+         */
+        function analyzeUnusedCss(iDoc) {
+            try {
+                const unusedSelectors = [];
+                const stylesheets = iDoc.styleSheets;
+                
+                for (const sheet of stylesheets) {
+                    // Ensure we can access the rules (same-origin, which data: URL is)
+                    if (sheet.cssRules) {
+                        for (const rule of sheet.cssRules) {
+                            // We only care about style rules with selectors
+                            if (rule.selectorText) {
+                                const selectors = rule.selectorText.split(',').map(s => s.trim());
+                                let isAnySelectorUsed = false;
+                                
+                                for (const selector of selectors) {
+                                    // Naive check: ignore pseudo-classes/elements for this test
+                                    const cleanSelector = selector.split(/[:\[]/)[0];
+                                    
+                                    if (cleanSelector) {
+                                        try {
+                                            if (iDoc.querySelector(cleanSelector)) {
+                                                isAnySelectorUsed = true;
+                                                break; // One part of the rule is used, so the rule is used
+                                            }
+                                        } catch (e) {
+                                            // Invalid selector for querySelector, e.g., 'body:hover'
+                                        }
+                                    }
+                                }
+                                
+                                if (!isAnySelectorUsed) {
+                                    unusedSelectors.push(rule.selectorText);
+                                }
+                            }
+                        }
+                    }
+                }
+                displayUnusedCss(unusedSelectors);
+            } catch (e) {
+                console.error('CSS Analysis failed:', e);
+                displayUnusedCss(['Error: Could not analyze CSS.']);
+            }
+        }
+
+        /**
+         * Displays the list of unused CSS selectors
+         */
+        function displayUnusedCss(selectors) {
+            if (!selectors || selectors.length === 0) {
+                unusedCssResult.textContent = 'No unused selectors found (or analysis failed).';
+                return;
+            }
+            unusedCssResult.textContent = selectors.join('\n');
+        }
+
+        /**
+         * This script will be injected into the iframe to run its analysis
+         * It uses postMessage to send data back to the parent window
+         */
+        const getInjectedScript = () => `
+            <script>
+            (function() {
+                // Wait for window load to ensure all resources are processed
+                window.addEventListener('load', () => {
+                    let lcp = 0;
+                    
+                    // 1. LCP (Largest Contentful Paint)
+                    try {
+                        const lcpObserver = new PerformanceObserver((entryList) => {
+                            const entries = entryList.getEntries();
+                            if (entries.length > 0) {
+                                lcp = entries[entries.length - 1].startTime;
+                            }
+                        });
+                        lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
+                    } catch (e) { console.error('LCP Observer failed', e); }
+
+                    // 2. MutationObserver (to show it's active)
+                    // We won't report on this, but it's good practice
+                    try {
+                        const mutationObserver = new MutationObserver((mutations) => {
+                            console.log('DOM mutated:', mutations.length, 'changes');
+                            // In a real app, you might re-calculate DOM size
+                        });
+                        mutationObserver.observe(document.body, { childList: true, subtree: true });
+                    } catch (e) { console.error('MutationObserver failed', e); }
+
+                    // 3. Send results back after a delay
+                    // We wait to ensure async metrics like LCP have time to be recorded
+                    setTimeout(() => {
+                        // Re-check LCP from buffer just in case
+                        const lcpEntries = performance.getEntriesByType('largest-contentful-paint');
+                        if (lcpEntries.length > 0) {
+                            lcp = lcpEntries[lcpEntries.length - 1].startTime;
+                        }
+
+                        // Get network calls (resources)
+                        const resourceEntries = performance.getEntriesByType('resource');
+                        const networkCalls = resourceEntries.length;
+                        
+                        // Get image stats
+                        const imageStats = resourceEntries
+                            .filter(e => e.initiatorType === 'image')
+                            .map(img => ({
+                                url: img.name,
+                                size: img.transferSize,
+                                duration: img.duration
+                            }));
+
+                        // Get DOM size
+                        const domSize = document.getElementsByTagName('*').length;
+
+                        // Post results to parent window
+                        window.parent.postMessage({
+                            type: 'analysisResults',
+                            payload: {
+                                domSize,
+                                lcp,
+                                networkCalls,
+                                imageStats
+                            }
+                        }, '*'); // Use a specific origin in production
+
+                    }, 1500); // Wait 1.5s for metrics to settle
+                });
+            })();
+            <\/script>
+        `;
+
+        /**
+         * Main analysis function
+         */
+        function handleAnalyzeClick() {
+            resetResults();
+            
+            const htmlContent = htmlInput.value;
+            const cssContent = cssInput.value;
+            const injectedScript = getInjectedScript();
+
+            // Construct the full HTML for the iframe
+            const fullHtml = `
+                <html>
+                <head>
+                    <style>${cssContent}</style>
+                </head>
+                <body>
+                    ${htmlContent}
+                    ${injectedScript}
+                </body>
+                </html>
+            `;
+
+            // Load the HTML into the iframe using a data URL
+            sandbox.src = 'data:text/html;charset=utf-8,' + encodeURIComponent(fullHtml);
+        }
+        
+        /**
+         * Fetches HTML and CSS from a given URL via a CORS proxy
+         */
+        async function fetchHtmlAndCss(url) {
+            // Using a public CORS proxy. In a real app, you'd host your own.
+            const proxyUrl = 'https://api.allorigins.win/raw?url=';
+            const encodedUrl = encodeURIComponent(url);
+            
+            // 1. Fetch HTML
+            fetchStatus.textContent = 'Fetching HTML...';
+            const htmlResponse = await fetch(proxyUrl + encodedUrl);
+            if (!htmlResponse.ok) {
+                throw new Error(`Failed to fetch HTML (Status: ${htmlResponse.status})`);
+            }
+            const htmlText = await htmlResponse.text();
+
+            fetchStatus.textContent = 'Parsing HTML & fetching CSS...';
+
+            // 2. Parse HTML to find CSS
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, 'text/html');
+
+            // 3. Extract inline <style> tags
+            const styleTags = [...doc.querySelectorAll('style')];
+            const inlineCss = styleTags.map(style => style.textContent).join('\n\n/* ----- Inline <style> ----- */\n\n');
+
+            // 4. Find linked stylesheets
+            const cssLinks = [...doc.querySelectorAll('link[rel="stylesheet"]')];
+            const cssPromises = cssLinks.map(link => {
+                const href = link.getAttribute('href');
+                if (!href) {
+                    return Promise.resolve('');
+                }
+                
+                // Resolve relative URLs
+                const absoluteUrl = new URL(href, url).href;
+                
+                // Fetch each CSS file via the proxy
+                return fetch(proxyUrl + encodeURIComponent(absoluteUrl))
+                    .then(res => {
+                        if (res.ok) {
+                            return res.text();
+                        }
+                        console.warn('Failed to fetch CSS:', absoluteUrl);
+                        return ''; // Return empty string on failure
+                    })
+                    .catch(err => {
+                        console.error('Error fetching CSS:', absoluteUrl, err);
+                        return ''; // Return empty string on error
+                    });
+            });
+
+            // 5. Wait for all CSS fetches
+            const cssContents = await Promise.all(cssPromises);
+            const linkedCss = cssContents.join('\n\n/* ----- New CSS File ----- */\n\n');
+
+            // 6. Combine all CSS
+            const combinedCss = inlineCss + '\n\n' + linkedCss;
+
+            return { html: htmlText, css: combinedCss };
+        }
+
+        /**
+         * Handles the click event for the "Fetch & Analyze" button
+         */
+        async function handleFetchAndAnalyze() {
+            const url = urlInput.value;
+            if (!url) {
+                fetchStatus.textContent = 'Please enter a valid URL.';
+                return;
+            }
+
+            // Simple URL validation
+            try {
+                new URL(url);
+            } catch (_) {
+                fetchStatus.textContent = 'Invalid URL format.';
+                return;
+            }
+
+            fetchStatus.textContent = 'Starting analysis...';
+            resetResults(); // Reset UI
+            
+            try {
+                const { html, css } = await fetchHtmlAndCss(url);
+                
+                htmlInput.value = html;
+                cssInput.value = css;
+                
+                fetchStatus.textContent = 'Content fetched. Running analysis...';
+                
+                // Now run the analysis on the fetched content
+                handleAnalyzeClick();
+                
+                // Clear status after a bit
+                setTimeout(() => {
+                    fetchStatus.textContent = '';
+                }, 3000);
+
+            } catch (error) {
+                console.error('Fetch failed:', error);
+                fetchStatus.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        /**
+         * Listen for results from the iframe
+         */
+        window.addEventListener('message', (event) => {
+            // Basic security check: ensure message is from our iframe
+            if (event.source !== sandbox.contentWindow) {
+                return;
+            }
+            
+            const { type, payload } = event.data;
+            
+            if (type === 'analysisResults') {
+                displayMetrics(payload);
+                displayImageStats(payload.imageStats);
+            }
+        });
+
+        /**
+         * Analyze CSS once the iframe has loaded its content
+         */
+        sandbox.addEventListener('load', () => {
+            // The iframe's contentDocument is now available
+            if (sandbox.contentDocument) {
+                analyzeUnusedCss(sandbox.contentDocument);
+            }
+        });
+        
+        // Add event listener to the button
+        analyzeButton.addEventListener('click', handleAnalyzeClick);
+        fetchButton.addEventListener('click', handleFetchAndAnalyze);
+        
+        // Load default content on page load
+        document.addEventListener('DOMContentLoaded', setDefaultContent);
+
+    </script>
+</body>
+</html>
